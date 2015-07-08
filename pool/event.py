@@ -2,9 +2,6 @@
 
 from . import util, exc
 
-CANCEL = util.symbol('CANCEL')
-NO_RETVAL = util.symbol('NO_RETVAL')
-
 _registrars = util.defaultdict(list)
 
 def _is_event_name(name):
