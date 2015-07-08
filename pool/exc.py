@@ -14,45 +14,6 @@ class PoolError(Exception):
     """Generic error class."""
 
 
-class ArgumentError(PoolError):
-    """Raised when an invalid or conflicting function argument is supplied.
-
-    This error generally corresponds to construction time state errors.
-
-    """
-
-
-class CircularDependencyError(PoolError):
-    """Raised by topological sorts when a circular dependency is detected.
-    
-    There are two scenarios where this error occurs:
-    
-    * In a Session flush operation, if two objects are mutually dependent
-      on each other, they can not be inserted or deleted via INSERT or 
-      DELETE statements alone; an UPDATE will be needed to post-associate
-      or pre-deassociate one of the foreign key constrained values.
-      The ``post_update`` flag described at :ref:`post_update` can resolve 
-      this cycle.
-    * In a :meth:`.MetaData.create_all`, :meth:`.MetaData.drop_all`,
-      :attr:`.MetaData.sorted_tables` operation, two :class:`.ForeignKey`
-      or :class:`.ForeignKeyConstraint` objects mutually refer to each
-      other.  Apply the ``use_alter=True`` flag to one or both,
-      see :ref:`use_alter`.
-      
-    """
-    def __init__(self, message, cycles, edges, msg=None):
-        if msg is None:
-            message += " Cycles: %r all edges: %r" % (cycles, edges)
-        else:
-            message = msg
-        PoolError.__init__(self, message)
-        self.cycles = cycles
-        self.edges = edges
-
-    def __reduce__(self):
-        return self.__class__, (None, self.cycles, 
-                            self.edges, self.args[0])
-
 class DisconnectionError(PoolError):
     """A disconnect is detected on a raw connection.
 
@@ -75,19 +36,3 @@ class InvalidRequestError(PoolError):
     This error generally corresponds to runtime state errors.
 
     """
-
-class ResourceClosedError(InvalidRequestError):
-    """An operation was requested from a connection, cursor, or other
-    object that's in a closed state."""
-
-
-class PoolDeprecationWarning(DeprecationWarning):
-    """Issued once per usage of a deprecated API."""
-
-
-class PoolPendingDeprecationWarning(PendingDeprecationWarning):
-    """Issued once per usage of a deprecated API."""
-
-
-class PoolWarning(RuntimeWarning):
-    """Issued at runtime."""
