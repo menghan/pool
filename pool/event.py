@@ -4,14 +4,18 @@ from collections import defaultdict
 
 _registrars = defaultdict(list)
 
+
 def _is_event_name(name):
     return not name.startswith('_') and name != 'dispatch'
 
+
 class _UnpickleDispatch(object):
+
     """Serializable callable that re-generates an instance of :class:`_Dispatch`
     given a particular :class:`.Events` subclass.
 
     """
+
     def __call__(self, _parent_cls):
         for cls in _parent_cls.__mro__:
             if 'dispatch' in cls.__dict__:
@@ -19,13 +23,15 @@ class _UnpickleDispatch(object):
         else:
             raise AttributeError("No class with a 'dispatch' member present.")
 
+
 class _Dispatch(object):
-    """Mirror the event listening definitions of an Events class with 
+
+    """Mirror the event listening definitions of an Events class with
     listener collections.
 
-    Classes which define a "dispatch" member will return a 
-    non-instantiated :class:`._Dispatch` subclass when the member 
-    is accessed at the class level.  When the "dispatch" member is 
+    Classes which define a "dispatch" member will return a
+    non-instantiated :class:`._Dispatch` subclass when the member
+    is accessed at the class level.  When the "dispatch" member is
     accessed at the instance level of its owner, an instance
     of the :class:`._Dispatch` class is returned.
 
@@ -33,7 +39,7 @@ class _Dispatch(object):
     class defined, by the :func:`._create_dispatcher_class` function.
     The original :class:`.Events` classes remain untouched.
     This decouples the construction of :class:`.Events` subclasses from
-    the implementation used by the event internals, and allows 
+    the implementation used by the event internals, and allows
     inspecting tools like Sphinx to work in an unsurprising
     way against the public API.
 
@@ -66,6 +72,7 @@ def _remove_dispatcher(cls):
 
 
 class _DispatchDescriptor(object):
+
     """Class-level attributes on :class:`._Dispatch` classes."""
 
     def __init__(self, fn):
@@ -75,7 +82,7 @@ class _DispatchDescriptor(object):
 
     def insert(self, obj, target, propagate):
         assert isinstance(target, type), \
-                "Class-level Event targets must be classes."
+            "Class-level Event targets must be classes."
 
         stack = [target]
         while stack:
@@ -85,7 +92,7 @@ class _DispatchDescriptor(object):
 
     def append(self, obj, target, propagate):
         assert isinstance(target, type), \
-                "Class-level Event targets must be classes."
+            "Class-level Event targets must be classes."
 
         stack = [target]
         while stack:
@@ -110,11 +117,12 @@ class _DispatchDescriptor(object):
         if obj is None:
             return self
         obj.__dict__[self.__name__] = result = \
-                            _ListenerCollection(self, obj._parent_cls)
+            _ListenerCollection(self, obj._parent_cls)
         return result
 
 
 class _ListenerCollection(object):
+
     """Instance-level attributes on instances of :class:`._Dispatch`.
 
     Represents a collection of listeners.
@@ -174,11 +182,11 @@ class _ListenerCollection(object):
         existing_listeners = self.listeners
         existing_listener_set = set(existing_listeners)
         self.propagate.update(other.propagate)
-        existing_listeners.extend([l for l 
-                                in other.listeners 
-                                if l not in existing_listener_set
-                                and not only_propagate or l in self.propagate
-                                ])
+        existing_listeners.extend([l for l
+                                   in other.listeners
+                                   if l not in existing_listener_set
+                                   and not only_propagate or l in self.propagate
+                                   ])
 
     def insert(self, obj, target, propagate):
         if obj not in self.listeners:
@@ -203,12 +211,12 @@ class _ListenerCollection(object):
 
 
 class _EventMeta(type):
-    """Intercept new Event subclasses and create 
+
+    """Intercept new Event subclasses and create
     associated _Dispatch classes."""
 
     def __init__(cls, classname, bases, dict_):
-
-        """Create a :class:`._Dispatch` class corresponding to an 
+        """Create a :class:`._Dispatch` class corresponding to an
         :class:`.Events` class."""
 
         # there's all kinds of ways to do this,
@@ -216,8 +224,8 @@ class _EventMeta(type):
         # of the Event class, this is the straight monkeypatch.
 
         dispatch_base = getattr(cls, 'dispatch', _Dispatch)
-        cls.dispatch = dispatch_cls = type("%sDispatch" % classname, 
-                                            (dispatch_base, ), {})
+        cls.dispatch = dispatch_cls = type("%sDispatch" % classname,
+                                           (dispatch_base, ), {})
         dispatch_cls._listen = cls._listen
         dispatch_cls._clear = cls._clear
 
@@ -230,6 +238,7 @@ class _EventMeta(type):
 
 
 class PoolEvents(object):
+
     """Define event listening functions for a particular target type.
 
     Available events for :class:`.Pool`.
