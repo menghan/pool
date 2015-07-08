@@ -22,9 +22,14 @@ import time
 import traceback
 from functools import wraps, partial
 
+try:
+    import threading
+except ImportError:
+    import dummy_threading as threading
+
 from . import exc
-from .util import queue as sqla_queue
-from .util import threading, memoized_property, chop_traceback
+from .util import queue
+from .util.langhelpers import memoized_property, chop_traceback
 
 
 class Pool(object):
@@ -555,7 +560,7 @@ class QueuePool(Pool):
 
         """
         Pool.__init__(self, creator, **kw)
-        self._pool = sqla_queue.Queue(pool_size)
+        self._pool = queue.Queue(pool_size)
         self._overflow = 0 - pool_size
         self._max_overflow = max_overflow
         self._timeout = timeout
@@ -573,7 +578,7 @@ class QueuePool(Pool):
     def _do_return_conn(self, conn):
         try:
             self._pool.put(conn, False)
-        except sqla_queue.Full:
+        except queue.Full:
             conn.close()
             self._overflow -= 1
 
@@ -582,7 +587,7 @@ class QueuePool(Pool):
             wait = self._max_overflow > -1 and \
                 self._create_conn_num + self._overflow >= self._max_overflow
             return self._pool.get(wait, self._timeout)
-        except sqla_queue.Empty:
+        except queue.Empty:
             if self._max_overflow > -1 and \
                     self._create_conn_num + self._overflow >= self._max_overflow:
                 if not wait:
@@ -610,7 +615,7 @@ class QueuePool(Pool):
             try:
                 conn = self._pool.get(False)
                 conn.close()
-            except sqla_queue.Empty:
+            except queue.Empty:
                 break
 
         self._overflow = 0 - self.size()
