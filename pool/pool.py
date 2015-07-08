@@ -20,9 +20,24 @@ import logging
 import weakref, time, traceback
 from functools import wraps, partial
 
-from . import exc, event, events
+from . import exc, event
 from .util import queue as sqla_queue
 from .util import threading, memoized_property, chop_traceback
+
+
+class dispatcher(object):
+    """Descriptor used by target classes to 
+    deliver the _Dispatch class at the class level
+    and produce new _Dispatch instances for target
+    instances.
+
+    """
+    def __get__(self, obj, cls):
+        if obj is None:
+            return event.PoolEvents.dispatch
+        obj.__dict__['dispatch'] = disp = event.PoolEvents.dispatch(cls)
+        return disp
+
 
 class Pool(object):
     """Abstract base class for connection pools."""
@@ -107,7 +122,7 @@ class Pool(object):
             for fn, target in events:
                 event.listen(self, target, fn)
 
-    dispatch = event.dispatcher(events.PoolEvents)
+    dispatch = dispatcher()
 
     def _should_log_debug(self):
         return self.logger.isEnabledFor(logging.DEBUG)

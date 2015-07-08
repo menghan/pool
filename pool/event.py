@@ -88,41 +88,6 @@ def _remove_dispatcher(cls):
             if not _registrars[k]:
                 del _registrars[k]
 
-class Events(object):
-    """Define event listening functions for a particular target type."""
-
-
-    __metaclass__ = _EventMeta
-
-    @classmethod
-    def _accept_with(cls, target):
-        # Mapper, ClassManager, Session override this to
-        # also accept classes, scoped_sessions, sessionmakers, etc.
-        if hasattr(target, 'dispatch') and (
-                    isinstance(target.dispatch, cls.dispatch) or \
-                    isinstance(target.dispatch, type) and \
-                    issubclass(target.dispatch, cls.dispatch)
-                ):
-            return target
-        else:
-            return None
-
-    @classmethod
-    def _listen(cls, target, identifier, fn, propagate=False, insert=False):
-        if insert:
-            getattr(target.dispatch, identifier).insert(fn, target, propagate)
-        else:
-            getattr(target.dispatch, identifier).append(fn, target, propagate)
-
-    @classmethod
-    def _remove(cls, target, identifier, fn):
-        getattr(target.dispatch, identifier).remove(fn, target)
-
-    @classmethod
-    def _clear(cls):
-        for attr in dir(cls.dispatch):
-            if _is_event_name(attr):
-                getattr(cls.dispatch, attr).clear()
 
 class _DispatchDescriptor(object):
     """Class-level attributes on :class:`._Dispatch` classes."""
@@ -259,19 +224,85 @@ class _ListenerCollection(object):
         self.listeners[:] = []
         self.propagate.clear()
 
-class dispatcher(object):
-    """Descriptor used by target classes to 
-    deliver the _Dispatch class at the class level
-    and produce new _Dispatch instances for target
-    instances.
+pool = util.importlater('pool', 'pool')
+
+class PoolEvents(object):
+    """Define event listening functions for a particular target type.
+
+    Available events for :class:`.Pool`.
+
+    The methods here define the name of an event as well
+    as the names of members that are passed to listener
+    functions.
+
+    e.g.::
+
+        from sqlalchemy import event
+
+        def my_on_checkout(dbapi_conn, connection_rec, connection_proxy):
+            "handle an on checkout event"
+
+        event.listen(Pool, 'checkout', my_on_checkout)
+
+    In addition to accepting the :class:`.Pool` class and :class:`.Pool` instances,
+    :class:`.PoolEvents` also accepts :class:`.Engine` objects and
+    the :class:`.Engine` class as targets, which will be resolved
+    to the ``.pool`` attribute of the given engine or the :class:`.Pool`
+    class::
+
+        engine = create_engine("postgresql://scott:tiger@localhost/test")
+
+        # will associate with engine.pool
+        event.listen(engine, 'checkout', my_on_checkout)
 
     """
-    def __init__(self, events):
-        self.dispatch_cls = events.dispatch
-        self.events = events
 
-    def __get__(self, obj, cls):
-        if obj is None:
-            return self.dispatch_cls
-        obj.__dict__['dispatch'] = disp = self.dispatch_cls(cls)
-        return disp
+    __metaclass__ = _EventMeta
+
+    @classmethod
+    def _listen(cls, target, identifier, fn, propagate=False, insert=False):
+        if insert:
+            getattr(target.dispatch, identifier).insert(fn, target, propagate)
+        else:
+            getattr(target.dispatch, identifier).append(fn, target, propagate)
+
+    @classmethod
+    def _remove(cls, target, identifier, fn):
+        getattr(target.dispatch, identifier).remove(fn, target)
+
+    @classmethod
+    def _clear(cls):
+        for attr in dir(cls.dispatch):
+            if _is_event_name(attr):
+                getattr(cls.dispatch, attr).clear()
+
+    def connect(self, dbapi_connection, connection_record):
+        """Called once for each new DB-API connection or Pool's ``creator()``.
+
+        :param dbapi_con:
+          A newly connected raw DB-API connection (not a SQLAlchemy
+          ``Connection`` wrapper).
+
+        :param con_record:
+          The ``_ConnectionRecord`` that persistently manages the connection
+
+        """
+
+    def checkout(self, dbapi_connection, connection_record, connection_proxy):
+        """Called when a connection is retrieved from the Pool.
+
+        :param dbapi_con:
+          A raw DB-API connection
+
+        :param con_record:
+          The ``_ConnectionRecord`` that persistently manages the connection
+
+        :param con_proxy:
+          The ``_ConnectionFairy`` which manages the connection for the span of
+          the current checkout.
+
+        If you raise a :class:`~sqlalchemy.exc.DisconnectionError`, the current
+        connection will be disposed and a fresh connection retrieved.
+        Processing of all checkout listeners will abort and restart
+        using the new connection.
+        """
