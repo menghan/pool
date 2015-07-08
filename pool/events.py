@@ -58,18 +58,6 @@ class PoolEvents(event.Events):
 
         """
 
-    def first_connect(self, dbapi_connection, connection_record):
-        """Called exactly once for the first DB-API connection.
-
-        :param dbapi_con:
-          A newly connected raw DB-API connection (not a SQLAlchemy
-          ``Connection`` wrapper).
-
-        :param con_record:
-          The ``_ConnectionRecord`` that persistently manages the connection
-
-        """
-
     def checkout(self, dbapi_connection, connection_record, connection_proxy):
         """Called when a connection is retrieved from the Pool.
 

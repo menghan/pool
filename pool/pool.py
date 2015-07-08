@@ -115,17 +115,6 @@ class Pool(object):
     def _should_log_info(self):
         return self.logger.isEnabledFor(logging.INFO)
 
-    def unique_connection(self):
-        """Produce a DBAPI connection that is not referenced by any
-        thread-local context.
-
-        This method is different from :meth:`.Pool.connect` only if the
-        ``use_threadlocal`` flag has been set to ``True``.
-
-        """
-
-        return _ConnectionFairy(self).checkout()
-
     def _create_connection(self):
         """Called by subclasses to create a new ConnectionRecord."""
 
@@ -214,7 +203,6 @@ class _ConnectionRecord(object):
         self.connection = self.__connect()
         self.info = {}
 
-        pool.dispatch.first_connect.exec_once(self.connection, self)
         pool.dispatch.connect(self.connection, self)
 
     def close(self):
