@@ -80,6 +80,10 @@ class Pool(object):
             self._orig_logging_name = None
 
         self.logger = logging.getLogger(__name__)  # TODO
+        for handler in list(self.logger.handlers):
+            self.logger.removeHandler(handler)
+        self.logger.addHandler(logging.StreamHandler())
+        self.logger.setLevel(logging.DEBUG)
         self._threadconns = threading.local()
         self._creator = creator
         self._recycle = recycle
