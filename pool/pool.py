@@ -201,7 +201,6 @@ class _ConnectionRecord(object):
         self.connection = self.__connect()
         self.info = {}
 
-        pool.dispatch.first_connect.exec_once(self.connection, self)
         pool.dispatch.connect(self.connection, self)
 
     def close(self):
