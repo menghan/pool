@@ -52,34 +52,10 @@ class _Dispatch(object):
         for ls in _event_descriptors(other):
             getattr(self, ls.name)._update(ls, only_propagate=only_propagate)
 
+
 def _event_descriptors(target):
     return [getattr(target, k) for k in dir(target) if _is_event_name(k)]
 
-class _EventMeta(type):
-    """Intercept new Event subclasses and create 
-    associated _Dispatch classes."""
-
-    def __init__(cls, classname, bases, dict_):
-        _create_dispatcher_class(cls, classname, bases, dict_)
-        return type.__init__(cls, classname, bases, dict_)
-
-def _create_dispatcher_class(cls, classname, bases, dict_):
-    """Create a :class:`._Dispatch` class corresponding to an 
-    :class:`.Events` class."""
-
-    # there's all kinds of ways to do this,
-    # i.e. make a Dispatch class that shares the '_listen' method
-    # of the Event class, this is the straight monkeypatch.
-    dispatch_base = getattr(cls, 'dispatch', _Dispatch)
-    cls.dispatch = dispatch_cls = type("%sDispatch" % classname, 
-                                        (dispatch_base, ), {})
-    dispatch_cls._listen = cls._listen
-    dispatch_cls._clear = cls._clear
-
-    for k in dict_:
-        if _is_event_name(k):
-            setattr(dispatch_cls, k, _DispatchDescriptor(dict_[k]))
-            _registrars[k].append(cls)
 
 def _remove_dispatcher(cls):
     for k in dir(cls):
@@ -136,6 +112,7 @@ class _DispatchDescriptor(object):
         obj.__dict__[self.__name__] = result = \
                             _ListenerCollection(self, obj._parent_cls)
         return result
+
 
 class _ListenerCollection(object):
     """Instance-level attributes on instances of :class:`._Dispatch`.
@@ -225,6 +202,34 @@ class _ListenerCollection(object):
         self.propagate.clear()
 
 pool = util.importlater('pool', 'pool')
+
+
+class _EventMeta(type):
+    """Intercept new Event subclasses and create 
+    associated _Dispatch classes."""
+
+    def __init__(cls, classname, bases, dict_):
+
+        """Create a :class:`._Dispatch` class corresponding to an 
+        :class:`.Events` class."""
+
+        # there's all kinds of ways to do this,
+        # i.e. make a Dispatch class that shares the '_listen' method
+        # of the Event class, this is the straight monkeypatch.
+
+        dispatch_base = getattr(cls, 'dispatch', _Dispatch)
+        cls.dispatch = dispatch_cls = type("%sDispatch" % classname, 
+                                            (dispatch_base, ), {})
+        dispatch_cls._listen = cls._listen
+        dispatch_cls._clear = cls._clear
+
+        for k in dict_:
+            if _is_event_name(k):
+                setattr(dispatch_cls, k, _DispatchDescriptor(dict_[k]))
+                _registrars[k].append(cls)
+
+        return type.__init__(cls, classname, bases, dict_)
+
 
 class PoolEvents(object):
     """Define event listening functions for a particular target type.
