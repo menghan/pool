@@ -16,14 +16,15 @@ regular connection factories to be transparently managed by a
 connection pool.
 """
 
+import logging
 import weakref, time, traceback
 from functools import wraps, partial
 
-from . import exc, log, event, events
+from . import exc, event, events
 from .util import queue as sqla_queue
 from .util import threading, memoized_property, chop_traceback
 
-class Pool(log.Identified):
+class Pool(object):
     """Abstract base class for connection pools."""
 
     def __init__(self, 
@@ -91,7 +92,7 @@ class Pool(log.Identified):
         else:
             self._orig_logging_name = None
 
-        log.instance_logger(self, echoflag=echo)
+        self.logger = logging.getLogger(__name__)  # TODO
         self._threadconns = threading.local()
         self._creator = creator
         self._recycle = recycle
@@ -107,6 +108,12 @@ class Pool(log.Identified):
                 event.listen(self, target, fn)
 
     dispatch = event.dispatcher(events.PoolEvents)
+
+    def _should_log_debug(self):
+        return self.logger.isEnabledFor(logging.DEBUG)
+
+    def _should_log_info(self):
+        return self.logger.isEnabledFor(logging.INFO)
 
     def unique_connection(self):
         """Produce a DBAPI connection that is not referenced by any
