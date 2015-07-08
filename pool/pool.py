@@ -19,7 +19,7 @@ connection pool.
 import weakref, time, traceback
 from functools import wraps, partial
 
-from . import exc, log, event, events, interfaces
+from . import exc, log, event, events
 from .util import queue as sqla_queue
 from .util import threading, memoized_property, chop_traceback
 
@@ -107,16 +107,6 @@ class Pool(log.Identified):
                 event.listen(self, target, fn)
 
     dispatch = event.dispatcher(events.PoolEvents)
-
-    def add_listener(self, listener):
-        """Add a :class:`.PoolListener`-like object to this pool.
-
-        ``listener`` may be an object that implements some or all of
-        PoolListener, or a dictionary of callables containing implementations
-        of some or all of the named methods in PoolListener.
-
-        """
-        interfaces.PoolListener._adapt_listener(self, listener)
 
     def unique_connection(self):
         """Produce a DBAPI connection that is not referenced by any
