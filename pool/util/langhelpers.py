@@ -3,18 +3,6 @@
 
 import re
 
-class symbol(object):
-    def __init__(self, name, doc=None):
-        """Construct a new named symbol."""
-        assert isinstance(name, str)
-        self.name = name
-        if doc:
-            self.__doc__ = doc
-    def __reduce__(self):
-        return symbol, (self.name,)
-    def __repr__(self):
-        return "<symbol '%s>" % self.name
-
 class memoized_property(object):
     """A read-only @property that is only evaluated once."""
     def __init__(self, fget, doc=None):
