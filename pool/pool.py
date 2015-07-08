@@ -145,18 +145,18 @@ class Pool(object):
 
         """
         if not self._use_threadlocal:
-            return _ConnectionFairy(self).checkout()
+            return _ConnectionFairy(self)._checkout()
 
         try:
             rec = self._threadconns.current()
             if rec:
-                return rec.checkout()
+                return rec._checkout()
         except AttributeError:
             pass
 
         agent = _ConnectionFairy(self)
         self._threadconns.current = weakref.ref(agent)
-        return agent.checkout()
+        return agent._checkout()
 
     def _return_conn(self, record):
         """Given a _ConnectionRecord, return it to the :class:`.Pool`.
@@ -280,7 +280,7 @@ class _ConnectionFairy(object):
     """Proxies a connection and provides return-on-dereference
     support."""
 
-    __slots__ = '_pool', '__counter', 'connection', \
+    __slots__ = '_pool', '__counter', '_connection', \
                 '_connection_record', '__weakref__', \
                 '_detached_info', '_echo'
 
@@ -290,7 +290,7 @@ class _ConnectionFairy(object):
         self._echo = _echo = pool._should_log_debug()
         try:
             rec = self._connection_record = pool._do_get()
-            conn = self.connection = self._connection_record.get_connection()
+            conn = self._connection = self._connection_record.get_connection()
             rec.fairy = weakref.ref(
                 self,
                 lambda ref: _finalize_fairy and _finalize_fairy(conn, rec, pool, ref, _echo)
@@ -298,75 +298,58 @@ class _ConnectionFairy(object):
             _refs.add(rec)
         except:
             # helps with endless __getattr__ loops later on
-            self.connection = None
+            self._connection = None
             self._connection_record = None
             raise
         if self._echo:
             self._pool.logger.debug("Connection %r checked out from pool",
-                                    self.connection)
+                                    self._connection)
 
     @property
     def _logger(self):
         return self._pool.logger
 
-    @property
-    def is_valid(self):
-        return self.connection is not None
-
-    @property
-    def info(self):
-        """An info collection unique to this connection."""
-
-        try:
-            return self._connection_record.info
-        except AttributeError:
-            if self.connection is None:
-                raise exc.InvalidRequestError("This connection is closed")
-            try:
-                return self._detached_info
-            except AttributeError:
-                self._detached_info = value = {}
-                return value
-
-    def invalidate(self, e=None):
+    def _invalidate(self, e=None):
         """Mark this connection as invalidated.
 
         The connection will be immediately closed.  The containing
         ConnectionRecord will create a new connection when next used.
         """
 
-        if self.connection is None:
+        if self._connection is None:
             raise exc.InvalidRequestError("This connection is closed")
         if self._connection_record is not None:
             self._connection_record.invalidate(e=e)
-        self.connection = None
+        self._connection = None
         self._close()
 
     def __getattr__(self, key):
-        return getattr(self.connection, key)
+        if self._connection is None:
+            raise exc.InvalidRequestError("This connection is closed")
+        return getattr(self._connection, key)
 
-    def checkout(self):
-        if self.connection is None:
+    def _checkout(self):
+        if self._connection is None:
             raise exc.InvalidRequestError("This connection is closed")
         self.__counter += 1
 
         if self.__counter != 1:
             return self
 
-        # Pool listeners can trigger a reconnection on checkout
+        # Pool listeners can trigger a reconnection on _checkout
         attempts = 2
         while attempts > 0:
             try:
                 return self
             except exc.DisconnectionError as e:
                 self._pool.logger.info(
-                    "Disconnection detected on checkout: %s", e)
+                    "Disconnection detected on _checkout: %s", e)
                 self._connection_record.invalidate(e)
-                self.connection = self._connection_record.get_connection()
+                self._connection = self._connection_record.get_connection()
                 attempts -= 1
 
-        self._pool.logger.info("Reconnection attempts exhausted on checkout")
-        self.invalidate()
+        self._pool.logger.info("Reconnection attempts exhausted on _checkout")
+        self._invalidate()
         raise exc.InvalidRequestError("This connection is closed")
 
     def detach(self):
@@ -397,9 +380,9 @@ class _ConnectionFairy(object):
             self._close()
 
     def _close(self):
-        _finalize_fairy(self.connection, self._connection_record,
+        _finalize_fairy(self._connection, self._connection_record,
                         self._pool, None, self._echo)
-        self.connection = None
+        self._connection = None
         self._connection_record = None
 
 
