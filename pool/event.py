@@ -309,3 +309,30 @@ class PoolEvents(object):
         Processing of all checkout listeners will abort and restart
         using the new connection.
         """
+
+    def checkin(self, dbapi_connection, connection_record):
+        """Called when a connection returns to the pool.
+
+        Note that the connection may be closed, and may be None if the
+        connection has been invalidated.  ``checkin`` will not be called
+        for detached connections.  (They do not return to the pool.)
+
+        :param dbapi_con:
+          A raw DB-API connection
+
+        :param con_record:
+          The ``_ConnectionRecord`` that persistently manages the connection
+
+        """
+
+    def first_connect(self, dbapi_connection, connection_record):
+        """Called exactly once for the first DB-API connection.
+
+        :param dbapi_con:
+          A newly connected raw DB-API connection (not a SQLAlchemy
+          ``Connection`` wrapper).
+
+        :param con_record:
+          The ``_ConnectionRecord`` that persistently manages the connection
+
+        """
