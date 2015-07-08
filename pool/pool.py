@@ -83,16 +83,12 @@ class Pool(object):
           garbage collection.  Defaults to "close".
 
         """
+        self._orig_logging_name = logging_name or None
+        self.logging_name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         if logging_name:
-            self.logging_name = self._orig_logging_name = logging_name
-        else:
-            self._orig_logging_name = None
+            self.logging_name += '.%s' % logging_name
+        self.logger = logging.getLogger(logging_name)
 
-        self.logger = logging.getLogger(__name__)  # TODO
-        for handler in list(self.logger.handlers):
-            self.logger.removeHandler(handler)
-        self.logger.addHandler(logging.StreamHandler())
-        self.logger.setLevel(logging.DEBUG)
         self._threadconns = threading.local()
         self._creator = creator
         self._recycle = recycle
