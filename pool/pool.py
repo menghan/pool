@@ -187,7 +187,6 @@ class Pool(object):
 
 
 class _ConnectionRecord(object):
-    finalize_callback = None
 
     def __init__(self, pool):
         self.__pool = pool
@@ -271,12 +270,6 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
 
     if connection_record is not None:
         connection_record.fairy = None
-        # if echo:
-        #     pool.logger.debug("Connection %r being returned to pool",
-        #                       connection)
-        if connection_record.finalize_callback:
-            connection_record.finalize_callback(connection)
-            del connection_record.finalize_callback
         pool._return_conn(connection_record)
 
 _refs = set()
