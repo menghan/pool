@@ -1,6 +1,3 @@
-#!/usr/local/bin/python2.7
-#coding:utf-8
-
 import re
 
 class memoized_property(object):

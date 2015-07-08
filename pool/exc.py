@@ -1,4 +1,3 @@
-# sqlalchemy/exc.py
 # Copyright (C) 2005-2012 the Pool authors and contributors <see AUTHORS file>
 #
 # This module is part of Pool and is released under
