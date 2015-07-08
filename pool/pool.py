@@ -290,8 +290,6 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
         if connection_record.finalize_callback:
             connection_record.finalize_callback(connection)
             del connection_record.finalize_callback 
-        if pool.dispatch.checkin:
-            pool.dispatch.checkin(connection, connection_record)
         pool._return_conn(connection_record)
 
 _refs = set()
