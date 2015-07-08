@@ -226,8 +226,6 @@ class _EventMeta(type):
         dispatch_base = getattr(cls, 'dispatch', _Dispatch)
         cls.dispatch = dispatch_cls = type("%sDispatch" % classname,
                                            (dispatch_base, ), {})
-        dispatch_cls._clear = cls._clear
-
         for k in dict_:
             if _is_event_name(k):
                 setattr(dispatch_cls, k, _DispatchDescriptor(dict_[k]))
@@ -269,16 +267,6 @@ class PoolEvents(object):
     """
 
     __metaclass__ = _EventMeta
-
-    @classmethod
-    def _remove(cls, target, identifier, fn):
-        getattr(target.dispatch, identifier).remove(fn, target)
-
-    @classmethod
-    def _clear(cls):
-        for attr in dir(cls.dispatch):
-            if _is_event_name(attr):
-                getattr(cls.dispatch, attr).clear()
 
     def connect(self, dbapi_connection, connection_record):
         """Called once for each new DB-API connection or Pool's ``creator()``.
