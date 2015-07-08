@@ -27,6 +27,15 @@ from .util import queue
 from .util.langhelpers import memoized_property, chop_traceback
 
 
+class DummyLock(object):
+
+    def acquire(self, wait=True):
+        return True
+
+    def release(self):
+        pass
+
+
 class Pool(object):
 
     """Abstract base class for connection pools."""
@@ -223,7 +232,7 @@ class _ConnectionRecord(object):
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception as e:
-            self.__pool.logger.debug(
+            self.__pool.logger.error(
                 "Connection %r threw an error on close: %s",
                 self.connection, e)
 
@@ -246,6 +255,10 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
         return
 
     if connection is not None:
+        if connection_record and echo:
+            pool.logger.debug("Connection %r being returned to pool",
+                              connection)
+
         try:
             # Immediately close detached instances
             if connection_record is None and pool.close_method:
@@ -258,9 +271,9 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
 
     if connection_record is not None:
         connection_record.fairy = None
-        if echo:
-            pool.logger.debug("Connection %r being returned to pool",
-                              connection)
+        # if echo:
+        #     pool.logger.debug("Connection %r being returned to pool",
+        #                       connection)
         if connection_record.finalize_callback:
             connection_record.finalize_callback(connection)
             del connection_record.finalize_callback
@@ -296,7 +309,7 @@ class _ConnectionFairy(object):
             self._connection_record = None
             raise
         if self._echo:
-            self._pool.logger.debug("Connection %r checked out from pool" %
+            self._pool.logger.debug("Connection %r checked out from pool",
                                     self.connection)
 
     @property
@@ -538,8 +551,7 @@ class QueuePool(Pool):
         self._overflow = 0 - pool_size
         self._max_overflow = max_overflow
         self._timeout = timeout
-        self._overflow_lock = self._max_overflow > -1 and \
-                                    threading.Lock() or None
+        self._overflow_lock = threading.Lock() if self._max_overflow > -1 else DummyLock()
 
     def recreate(self):
         self.logger.info("Pool recreating")
@@ -554,15 +566,31 @@ class QueuePool(Pool):
         try:
             self._pool.put(conn, False)
         except queue.Full:
-            conn.close()
-            if self._overflow_lock is None:
-                self._overflow -= 1
+            try:
+                conn.close()
+            finally:
+                self._decr_overflow()
+
+    def _decr_overflow(self):
+        self._overflow_lock.acquire()
+        try:
+            self._overflow -= 1
+        finally:
+            self._overflow_lock.release()
+
+    def _incr_overflow(self):
+        if self._max_overflow == -1:
+            self._overflow += 1
+            return True
+        self._overflow_lock.acquire()
+        try:
+            if self._overflow < self._max_overflow:
+                self._overflow += 1
+                return True
             else:
-                self._overflow_lock.acquire()
-                try:
-                    self._overflow -= 1
-                finally:
-                    self._overflow_lock.release()
+                return False
+        finally:
+            self._overflow_lock.release()
 
     def _do_get(self):
         try:
@@ -580,22 +608,15 @@ class QueuePool(Pool):
                         "connection timed out, timeout %d" %
                         (self.size(), self.overflow(), self._timeout))
 
-            if self._overflow_lock is not None:
-                self._overflow_lock.acquire()
-
-            if self._max_overflow > -1 and \
-                    self._overflow >= self._max_overflow:
-                if self._overflow_lock is not None:
-                    self._overflow_lock.release()
-                return self._do_get()
-
-            try:
-                con = self._create_connection()
-                self._overflow += 1
-            finally:
-                if self._overflow_lock is not None:
-                    self._overflow_lock.release()
-            return con
+            if self._incr_overflow():
+                try:
+                    conn = self._create_connection()
+                except:
+                    self._decr_overflow()
+                    raise
+            else:
+                conn = self._do_get()
+            return conn
 
     def dispose(self):
         while True:
