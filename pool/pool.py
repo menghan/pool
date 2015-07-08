@@ -40,10 +40,7 @@ class Pool(object):
                  creator, recycle=-1, echo=None,
                  use_threadlocal=False,
                  logging_name=None,
-                 reset_on_return=True,
-                 events=None,
                  close_method='close',
-                 reset_method='rollback',
                  ):
         """
         Construct a Pool.
@@ -77,22 +74,9 @@ class Pool(object):
           :meth:`unique_connection` method is provided to bypass the
           threadlocal behavior installed into :meth:`connect`.
 
-        :param reset_on_return: If true, reset the state of
-          connections returned to the pool.  This is a call of
-          :attr:`reset_method` to release locks and transaction resources.
-          Disable at your own peril.  Defaults to True.
-
-        :param events: a list of 2-tuples, each of the form
-         ``(callable, target)`` which will be passed to event.listen()
-         upon construction.
-
         :param close_method: the method name of the connection object to call
           (without parameter) to disconnect.  Set to None to disconnect at
           garbage collection.  Defaults to "close".
-
-        :param reset_method: the method name of the connection object to call
-          (without parameter) to reset the state of the connection.  Set to
-          None if no such a method.  Defaults to "rollback".
 
         """
         if logging_name:
@@ -105,10 +89,8 @@ class Pool(object):
         self._creator = creator
         self._recycle = recycle
         self._use_threadlocal = use_threadlocal
-        self._reset_on_return = reset_on_return
         self.echo = echo
         self.close_method = close_method
-        self.reset_method = reset_method
 
     def _should_log_debug(self):
         return self.logger.isEnabledFor(logging.DEBUG)
@@ -266,8 +248,6 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
 
     if connection is not None:
         try:
-            if pool._reset_on_return and pool.reset_method:
-                getattr(connection, pool.reset_method)()
             # Immediately close detached instances
             if connection_record is None and pool.close_method:
                 getattr(connection, pool.close_method)()
@@ -552,13 +532,8 @@ class QueuePool(Pool):
           cost of individual transactions by default.  The
           :meth:`unique_connection` method is provided to bypass the
           threadlocal behavior installed into :meth:`connect`.
-
-        :param reset_on_return: If true, reset the database state of
-          connections returned to the pool.  This is a call of
-          :attr:`reset_method` to release locks and transaction resources.
-          Disable at your own peril.  Defaults to True.
-
         """
+
         Pool.__init__(self, creator, **kw)
         self._pool = queue.Queue(pool_size)
         self._overflow = 0 - pool_size
@@ -709,7 +684,6 @@ class StaticPool(Pool):
         return self.__class__(creator=self._creator,
                               recycle=self._recycle,
                               use_threadlocal=self._use_threadlocal,
-                              reset_on_return=self._reset_on_return,
                               echo=self.echo,
                               logging_name=self._orig_logging_name)
 
