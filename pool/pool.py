@@ -535,7 +535,8 @@ class QueuePool(Pool):
         self._overflow = 0 - pool_size
         self._max_overflow = max_overflow
         self._timeout = timeout
-        self._create_conn_num = 0
+        self._overflow_lock = self._max_overflow > -1 and \
+                                    threading.Lock() or None
 
     def recreate(self):
         self.logger.info("Pool recreating")
@@ -551,16 +552,23 @@ class QueuePool(Pool):
             self._pool.put(conn, False)
         except queue.Full:
             conn.close()
-            self._overflow -= 1
+            if self._overflow_lock is None:
+                self._overflow -= 1
+            else:
+                self._overflow_lock.acquire()
+                try:
+                    self._overflow -= 1
+                finally:
+                    self._overflow_lock.release()
 
     def _do_get(self):
         try:
             wait = self._max_overflow > -1 and \
-                self._create_conn_num + self._overflow >= self._max_overflow
+                self._overflow >= self._max_overflow
             return self._pool.get(wait, self._timeout)
         except queue.Empty:
             if self._max_overflow > -1 and \
-                    self._create_conn_num + self._overflow >= self._max_overflow:
+                    self._overflow >= self._max_overflow:
                 if not wait:
                     return self._do_get()
                 else:
@@ -569,16 +577,21 @@ class QueuePool(Pool):
                         "connection timed out, timeout %d" %
                         (self.size(), self.overflow(), self._timeout))
 
+            if self._overflow_lock is not None:
+                self._overflow_lock.acquire()
+
             if self._max_overflow > -1 and \
-                    self._create_conn_num + self._overflow >= self._max_overflow:
+                    self._overflow >= self._max_overflow:
+                if self._overflow_lock is not None:
+                    self._overflow_lock.release()
                 return self._do_get()
 
             try:
-                self._create_conn_num += 1
                 con = self._create_connection()
                 self._overflow += 1
             finally:
-                self._create_conn_num -= 1
+                if self._overflow_lock is not None:
+                    self._overflow_lock.release()
             return con
 
     def dispose(self):
