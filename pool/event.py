@@ -1,8 +1,8 @@
 """Base event API."""
 
-from . import util, exc
+from collections import defaultdict
 
-_registrars = util.defaultdict(list)
+_registrars = defaultdict(list)
 
 def _is_event_name(name):
     return not name.startswith('_') and name != 'dispatch'
@@ -71,7 +71,7 @@ class _DispatchDescriptor(object):
     def __init__(self, fn):
         self.__name__ = fn.__name__
         self.__doc__ = fn.__doc__
-        self._clslevel = util.defaultdict(list)
+        self._clslevel = defaultdict(list)
 
     def insert(self, obj, target, propagate):
         assert isinstance(target, type), \
@@ -200,8 +200,6 @@ class _ListenerCollection(object):
     def clear(self):
         self.listeners[:] = []
         self.propagate.clear()
-
-pool = util.importlater('pool', 'pool')
 
 
 class _EventMeta(type):
