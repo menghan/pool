@@ -226,7 +226,6 @@ class _EventMeta(type):
         dispatch_base = getattr(cls, 'dispatch', _Dispatch)
         cls.dispatch = dispatch_cls = type("%sDispatch" % classname,
                                            (dispatch_base, ), {})
-        dispatch_cls._listen = cls._listen
         dispatch_cls._clear = cls._clear
 
         for k in dict_:
@@ -270,13 +269,6 @@ class PoolEvents(object):
     """
 
     __metaclass__ = _EventMeta
-
-    @classmethod
-    def _listen(cls, target, identifier, fn, propagate=False, insert=False):
-        if insert:
-            getattr(target.dispatch, identifier).insert(fn, target, propagate)
-        else:
-            getattr(target.dispatch, identifier).append(fn, target, propagate)
 
     @classmethod
     def _remove(cls, target, identifier, fn):
