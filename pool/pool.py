@@ -21,11 +21,7 @@ import weakref
 import time
 import traceback
 from functools import wraps, partial
-
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading
+import threading
 
 from . import exc
 from .util import queue

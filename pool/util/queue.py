@@ -13,9 +13,9 @@ rare cases be invoked within the ``get()`` method of the Queue itself,
 producing a ``put()`` inside the ``get()`` and therefore a reentrant
 condition."""
 
+import threading
 from collections import deque
 from time import time as _time
-from compat import threading
 
 __all__ = ['Empty', 'Full', 'Queue']
 
