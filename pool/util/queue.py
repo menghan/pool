@@ -12,7 +12,11 @@ rare cases be invoked within the ``get()`` method of the Queue itself,
 producing a ``put()`` inside the ``get()`` and therefore a reentrant
 condition."""
 
-import threading
+try:
+    import threading
+except ImportError:
+    import dummy_threading as threading
+
 from collections import deque
 from time import time as _time
 
@@ -28,7 +32,7 @@ class Full(Exception):
 
     pass
 
-class Queue:
+class Queue(object):
     def __init__(self, maxsize=0):
         """Initialize a queue object with a given maximum size.
 

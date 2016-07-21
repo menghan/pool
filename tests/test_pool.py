@@ -3,6 +3,7 @@ import threading
 from nose.tools import eq_, assert_not_equal
 import pool.pool as M
 
+
 def run_in_thread(func, args=(), kwargs={}, return_holder=[]):
     def f():
         ret = func(*args, **kwargs)
@@ -11,8 +12,11 @@ def run_in_thread(func, args=(), kwargs={}, return_holder=[]):
     t.start()
     return t
 
+
 class TestManager:
+
     def test_the_returned_obj_should_not_interfered_between_threads(self):
+
         @M.thread_safe_factory()
         class MemcacheClient(object):
             def get(self, key):
@@ -32,6 +36,7 @@ class TestManager:
 
 
     def test_the_returned_obj_should_use_the_same_connection_for_same_thread(self):
+
         @M.thread_safe_factory()
         class MemcacheClient(object):
             def get(self, key):
@@ -43,6 +48,7 @@ class TestManager:
         eq_(v1, v2)
 
     def test_the_returned_obj_should_use_different_connections_for_different_threads(self):
+
         @M.thread_safe_factory()
         class MemcacheClient(object):
             def get(self, key):
@@ -56,4 +62,3 @@ class TestManager:
         t1.join()
         t2.join()
         assert_not_equal(r1, r2)
-
